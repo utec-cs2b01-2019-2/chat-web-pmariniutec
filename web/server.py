@@ -1,9 +1,8 @@
-from flask import Flask, render_template, request, session, Response, redirect
+from flask import Flask, render_template, request, session, Response
 from database import connector
 from model import entities
 import datetime
 import json
-import time
 
 db = connector.Manager()
 engine = db.createEngine()
@@ -41,8 +40,8 @@ def get_user(id):
     db_session = db.getSession(engine)
     users = db_session.query(entities.User).filter(entities.User.id == id)
     for user in users:
-        js = json.dumps(user, cls=connector.AlchemyEncoder)
-        return Response(js, status=200, mimetype='application/json')
+        payload = json.dumps(user, cls=connector.AlchemyEncoder)
+        return Response(payload, status=200, mimetype='application/json')
 
     message = {'status': 404, 'message': 'Not Found'}
     return Response(message, status=404, mimetype='application/json')
@@ -77,17 +76,17 @@ def delete_user():
     user = session.query(entities.User).filter(entities.User.id == id).one()
     session.delete(user)
     session.commit()
-    return "Deleted User"
+    return 'Deleted User'
 
 
 @app.route('/create_test_users', methods=['GET'])
 def create_test_users():
     db_session = db.getSession(engine)
-    user = entities.User(name="David", fullname="Lazo",
-                         password="1234", username="qwerty")
+    user = entities.User(name='Piero', fullname='Marini',
+                         password='12345', username='pmarini')
     db_session.add(user)
     db_session.commit()
-    return "Test user created!"
+    return 'Test user created!'
 
 
 @app.route('/messages', methods=['POST'])
@@ -95,7 +94,7 @@ def create_message():
     c = json.loads(request.form['values'])
     message = entities.Message(
         content=c['content'],
-        sent_on=datetime.datetime(2000, 2, 2),
+        sent_on=datetime.datetime.now(),
         user_from_id=c['user_from_id'],
         user_to_id=c['user_to_id']
     )
@@ -111,8 +110,8 @@ def get_message(id):
     messages = db_session.query(entities.Message).filter(
         entities.Message.id == id)
     for message in messages:
-        js = json.dumps(message, cls=connector.AlchemyEncoder)
-        return Response(js, status=200, mimetype='application/json')
+        payload = json.dumps(message, cls=connector.AlchemyEncoder)
+        return Response(payload, status=200, mimetype='application/json')
 
     message = {'status': 404, 'message': 'Not Found'}
     return Response(message, status=404, mimetype='application/json')
@@ -130,19 +129,15 @@ def get_messages():
 @app.route('/messages/<user_from_id>/<user_to_id>', methods=['GET'])
 def get_messages_user(user_from_id, user_to_id):
     db_session = db.getSession(engine)
-    messages_send = db_session.query(entities.Message).filter(
+    sent_messages = db_session.query(entities.Message).filter(
         entities.Message.user_from_id == user_from_id).filter(
         entities.Message.user_to_id == user_to_id
     )
-    messages_recieved = db_session.query(entities.Message).filter(
+    received_messages = db_session.query(entities.Message).filter(
         entities.Message.user_from_id == user_to_id).filter(
         entities.Message.user_to_id == user_from_id
     )
-    data = []
-    for message in messages_send:
-        data.append(message)
-    for message in messages_recieved:
-        data.append(message)
+    data = list(sent_messages) + list(received_messages)
     return Response(json.dumps(data, cls=connector.AlchemyEncoder),
                     mimetype='application/json')
 
@@ -169,16 +164,16 @@ def delete_message():
         entities.Message.id == id).one()
     session.delete(message)
     session.commit()
-    return "Deleted Message"
+    return 'Deleted Message'
 
 
 @app.route('/create_test_messages', methods=['GET'])
 def create_test_messages():
     db_session = db.getSession(engine)
-    message = entities.Message(content="Hi")
+    message = entities.Message(content='Hi')
     db_session.add(message)
     db_session.commit()
-    return "Test message created!"
+    return 'Test message created!'
 
 
 @app.route('/sendMessage', methods=['POST'])
@@ -202,13 +197,10 @@ def send_message():
 
 @app.route('/authenticate', methods=['POST'])
 def authenticate():
-    # Get data form request
-    time.sleep(3)
     message = json.loads(request.data)
     username = message['username']
     password = message['password']
 
-    # Look in database
     db_session = db.getSession(engine)
 
     try:
@@ -239,5 +231,5 @@ def logout():
 
 
 if __name__ == '__main__':
-    app.secret_key = ".."
+    app.secret_key = '..'
     app.run(debug=True, port=8000, threaded=True, host=('127.0.0.1'))
