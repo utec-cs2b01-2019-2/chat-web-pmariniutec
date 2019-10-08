@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 	<head>
-		<title>Chat Login</title>
+		<title>Chat Register</title>
 		<script src="/static/js/vendor/jquery.js"></script>
 		<link rel="stylesheet" href="/static/css/vendor/bootstrap.min.css">
 		<link rel="stylesheet" href="/static/css/login.css" type="text/css" media="all">
@@ -11,8 +11,12 @@
 	</head>
 	<body>
 		<div id="login-form-wrap">
-			<h2>Login</h2>
-			<form id="login-form" method="post" class="login-form">
+			<h2>Register</h2>
+			<form id="register-form" method="post" class="login-form">
+				<input type="text" name="fullname" placeholder="Full Name" value="" required>
+				<i class="validation"><span></span><span></span></i>
+				<input type="email" name="email" placeholder="Email" value="" required>
+				<i class="validation"><span></span><span></span></i>
 				<input type="text" name="username" placeholder="Username" value="" required>
 				<i class="validation"><span></span><span></span></i>
 				<input type="password" name="password" placeholder="Password" value="" required>
@@ -20,7 +24,7 @@
 				<input type="submit" name="login" id="login" value="Login">
 			</form>
 			<div id="create-account-wrap">
-				<p><a href="/register">Register</a><p>
+				<p><a href="/login">Login</a><p>
 			</div>
 			<div id="server-results" style="margin: 10px 0">
 				
