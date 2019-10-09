@@ -1,5 +1,5 @@
 from flask import (Flask, render_template, request, session,
-                   Response, jsonify, redirect, url_for)
+                   Response, jsonify)
 from database import connector
 from model import entities
 import datetime
@@ -53,6 +53,24 @@ def user_table():
     raw_users = raw_users[:]
     users = json.dumps(raw_users, cls=connector.AlchemyEncoder)
     return render_template('users.html', users=json.loads(users))
+
+
+@app.route('/conversation/<user_to_id>', methods=['GET'])
+def conversation(user_to_id):
+    user_from_id = session['logged_user']
+    db_session = db.getSession(engine)
+
+    sent_messages = db_session.query(entities.Message).filter(
+        entities.Message.user_from_id == user_from_id).filter(
+        entities.Message.user_to_id == user_to_id
+    )
+    received_messages = db_session.query(entities.Message).filter(
+        entities.Message.user_from_id == user_to_id).filter(
+        entities.Message.user_to_id == user_from_id
+    )
+    raw_data = list(sent_messages) + list(received_messages)
+    data = json.dumps(raw_data, cls=connector.AlchemyEncoder)
+    return render_template('conversation.html', messages=json.loads(data))
 
 
 @app.route('/users', methods=['POST'])
@@ -143,31 +161,6 @@ def delete_user():
     return 'Deleted User'
 
 
-@app.route('/create_test_users', methods=['GET'])
-def create_test_users():
-    db_session = db.getSession(engine)
-    user = entities.User(name='Piero', fullname='Marini',
-                         password='12345', username='pmarini')
-    db_session.add(user)
-    db_session.commit()
-    return 'Test user created!'
-
-
-@app.route('/messages', methods=['POST'])
-def create_message():
-    c = json.loads(request.form['values'])
-    message = entities.Message(
-        content=c['content'],
-        sent_on=datetime.datetime.now(),
-        user_from_id=c['user_from_id'],
-        user_to_id=c['user_to_id']
-    )
-    session = db.getSession(engine)
-    session.add(message)
-    session.commit()
-    return 'Created Message'
-
-
 @app.route('/messages/<id>', methods=['GET'])
 def get_message(id):
     db_session = db.getSession(engine)
@@ -186,22 +179,6 @@ def get_messages():
     sessionc = db.getSession(engine)
     messages = sessionc.query(entities.Message)
     data = messages[:]
-    return Response(json.dumps(data, cls=connector.AlchemyEncoder),
-                    mimetype='application/json')
-
-
-@app.route('/messages/<user_from_id>/<user_to_id>', methods=['GET'])
-def get_messages_user(user_from_id, user_to_id):
-    db_session = db.getSession(engine)
-    sent_messages = db_session.query(entities.Message).filter(
-        entities.Message.user_from_id == user_from_id).filter(
-        entities.Message.user_to_id == user_to_id
-    )
-    received_messages = db_session.query(entities.Message).filter(
-        entities.Message.user_from_id == user_to_id).filter(
-        entities.Message.user_to_id == user_from_id
-    )
-    data = list(sent_messages) + list(received_messages)
     return Response(json.dumps(data, cls=connector.AlchemyEncoder),
                     mimetype='application/json')
 
@@ -231,31 +208,21 @@ def delete_message():
     return 'Deleted Message'
 
 
-@app.route('/create_test_messages', methods=['GET'])
-def create_test_messages():
-    db_session = db.getSession(engine)
-    message = entities.Message(content='Hi')
-    db_session.add(message)
-    db_session.commit()
-    return 'Test message created!'
-
-
 @app.route('/send_message', methods=['POST'])
 def send_message():
-    message = json.loads(request.data)
-    content = message['content']
-    user_from_id = message['user_from_id']
-    user_to_id = message['user_to_id']
-    session = db.getSession(engine)
+    data = request.get_json()
+    content = data['content']
+    user_to_id = data['user_to_id']
+    user_from_id = session['logged_user']
+    db_session = db.getSession(engine)
     add = entities.Message(
         content=content,
-        sent_on=datetime.datetime(2000, 2, 2),
+        sent_on=datetime.datetime.now(),
         user_from_id=user_from_id,
-        user_to_id=user_to_id,
-
+        user_to_id=user_to_id
     )
-    session.add(add)
-    session.commit()
+    db_session.add(add)
+    db_session.commit()
     message = {'message': 'Message sent succesfully'}
     return jsonify(message), 200
 

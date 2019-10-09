@@ -1,0 +1,43 @@
+{% extends 'main.html' %}
+{% block content %}
+<div class="main">
+	<div class="container">
+		<div class="chat-log">
+			<div class="chat-log__item chat-log__item--own">
+				<h3 class="chat-log__author">Fabrício <small>14:30</small></h3>
+				<div class="chat-log__message">BRB</div>
+			</div>
+			{% for message in messages %}
+				<div class="chat-log__item">
+					<h3 class="chat-log__author">
+						{{ message.user_from_id }}
+						<small>{{ message.sent_on }}</small>
+					</h3>
+					<div class="chat-log__message">
+						{{ message.content }}
+					</div>
+				</div>
+			{% endfor %}
+			<div class="chat-log__item chat-log__item--own">
+				<h3 class="chat-log__author">Fabrício <small>14:30</small></h3>
+				<div class="chat-log__message">BRB</div>
+			</div>
+		</div>
+	</div>
+	<div class="chat-form">
+		<div class="container ">
+			<form class="form-horizontal" id="send-message-form">
+				<div class="row">
+					<div class="col-sm-10 col-xs-8">
+						<input type="text" id="send-message-input" class="form-control" name="content" placeholder="Message" />
+					</div>
+					<div class="col-sm-2 col-xs-4">
+						<button type="submit" id="send-message-btn" class="btn btn-success btn-block">Send</button>
+					</div>
+					<div class="col-sm-10 col-xs-8" id="server-response"></div>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>
+{% endblock %}
