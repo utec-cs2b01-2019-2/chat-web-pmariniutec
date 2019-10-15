@@ -25,12 +25,14 @@ function login(data) {
 		contentType: 'application/json; charset=utf-8',
 		dataType: 'json',
 		success: function (data) {
-			if (data['message'] === 'Authorized') {
+			if (data['status'] === 'success') {
 				window.location.href = '/user-table'
 			}
 		},
 		error: function (data) {
-			$('#server-results').text(data['message'])
+			console.log(data)
+			const response = data.responseJSON
+			$('#server-results').text(response['message'])
 		}
 	})
 }
@@ -45,6 +47,10 @@ function register(data) {
 		dataType: 'json',
 		success: function (data) {
 			$('#server-results').text(data['message'])
+		},
+		error: function (data) {
+			const response = data.responseJSON
+			$('#server-results').text(response['message'])
 		}
 	})
 }

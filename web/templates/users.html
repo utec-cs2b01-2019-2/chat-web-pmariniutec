@@ -21,11 +21,17 @@
 			<td>{{ user.username }}</td>
 			<td>{{ user.password }}</td>
 			<td>
+				{% if user.id == current_user.id %}
+				<button class="btn btn-success">
+					You
+				</button>
+				{% else %}
 				<button class="btn btn-success">
 					<a href="/conversation/{{ user.id }}">
 						Start Chat
 					</a>
 				</button>
+				{% endif %}
 			</td>
 		</tr>
 		{% endfor %}

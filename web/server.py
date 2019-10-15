@@ -1,14 +1,33 @@
-from flask import (Flask, render_template, request, session,
-                   Response, jsonify)
-from database import connector
-from model import entities
+from functools import wraps
 import datetime
 import json
+from flask import (Flask, render_template, request, session,
+                   Response, jsonify, redirect, url_for)
+from database import connector
+from model import entities
 
 db = connector.Manager()
 engine = db.createEngine()
 
 app = Flask(__name__)
+
+
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if session.get('logged_user', None) is None:
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+
+def non_login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if session.get('logged_user', None) is not None:
+            return redirect(url_for('user_table'))
+        return f(*args, **kwargs)
+    return decorated_function
 
 
 @app.route('/')
@@ -22,55 +41,68 @@ def static_content(content):
 
 
 @app.route('/login', methods=['GET'])
+@non_login_required
 def login():
     return render_template('login.html')
 
 
 @app.route('/logout', methods=['GET'])
+@login_required
 def logout():
     session.clear()
     return render_template('login.html')
 
 
 @app.route('/register', methods=['GET'])
+@non_login_required
 def register():
     return render_template('register.html')
 
 
 @app.route('/message-table', methods=['GET'])
+@login_required
 def message_table():
     sessionc = db.getSession(engine)
     raw_messages = sessionc.query(entities.Message)
     raw_messages = raw_messages[:]
     messages = json.dumps(raw_messages, cls=connector.AlchemyEncoder)
-    return render_template('chat.html', messages=json.loads(messages))
+    return render_template('message-table.html', messages=json.loads(messages))
 
 
 @app.route('/user-table', methods=['GET'])
+@login_required
 def user_table():
-    session = db.getSession(engine)
-    raw_users = session.query(entities.User)
+    db_session = db.getSession(engine)
+    raw_users = db_session.query(entities.User)
     raw_users = raw_users[:]
     users = json.dumps(raw_users, cls=connector.AlchemyEncoder)
-    return render_template('users.html', users=json.loads(users))
+    current_user = db_session.query(entities.User).filter(
+        entities.User.id == session['logged_user']).first()
+    current_user = json.dumps(current_user, cls=connector.AlchemyEncoder)
+    return render_template('users.html', users=json.loads(users),
+                           current_user=json.loads(current_user))
 
 
 @app.route('/conversation/<user_to_id>', methods=['GET'])
+@login_required
 def conversation(user_to_id):
     user_from_id = session['logged_user']
     db_session = db.getSession(engine)
 
     sent_messages = db_session.query(entities.Message).filter(
         entities.Message.user_from_id == user_from_id).filter(
-        entities.Message.user_to_id == user_to_id
-    )
+        entities.Message.user_to_id == user_to_id).order_by(
+        entities.Message.sent_on.asc())
     received_messages = db_session.query(entities.Message).filter(
         entities.Message.user_from_id == user_to_id).filter(
-        entities.Message.user_to_id == user_from_id
-    )
-    raw_data = list(sent_messages) + list(received_messages)
-    data = json.dumps(raw_data, cls=connector.AlchemyEncoder)
-    return render_template('conversation.html', messages=json.loads(data))
+        entities.Message.user_to_id == user_from_id).order_by(
+        entities.Message.sent_on.asc())
+
+    raw_messages = list(sent_messages) + list(received_messages)
+    raw_messages = sorted(raw_messages, key=lambda x: x.sent_on)
+    messages = json.dumps(raw_messages, cls=connector.AlchemyEncoder)
+    return render_template('conversation.html', recipient=user_to_id,
+                           messages=json.loads(messages))
 
 
 @app.route('/users', methods=['POST'])
@@ -102,6 +134,7 @@ def get_user(id):
 
 
 @app.route('/authenticate', methods=['POST'])
+@non_login_required
 def authenticate():
     data = request.get_json()
     username = data['username']
@@ -114,14 +147,15 @@ def authenticate():
             .filter(entities.User.username == username)\
             .filter(entities.User.password == password).one()
         session['logged_user'] = user.id
-        message = {'message': 'Authorized'}
+        message = {'status': 'success', 'message': 'Logged in!'}
         return jsonify(message), 200
     except Exception:
-        message = {'message': 'Unauthorized'}
+        message = {'status': 'error', 'message': 'Invalid Username/Password'}
         return jsonify(message), 401
 
 
 @app.route('/current', methods=['GET'])
+@login_required
 def current_user():
     db_session = db.getSession(engine)
     user = db_session.query(entities.User).filter(
@@ -131,6 +165,7 @@ def current_user():
 
 
 @app.route('/users', methods=['GET'])
+@login_required
 def get_users():
     session = db.getSession(engine)
     dbResponse = session.query(entities.User)
@@ -215,13 +250,12 @@ def send_message():
     user_to_id = data['user_to_id']
     user_from_id = session['logged_user']
     db_session = db.getSession(engine)
-    add = entities.Message(
+    new_message = entities.Message(
         content=content,
-        sent_on=datetime.datetime.now(),
         user_from_id=user_from_id,
         user_to_id=user_to_id
     )
-    db_session.add(add)
+    db_session.add(new_message)
     db_session.commit()
     message = {'message': 'Message sent succesfully'}
     return jsonify(message), 200

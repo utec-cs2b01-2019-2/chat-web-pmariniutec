@@ -55,8 +55,6 @@ $(function () {
 	$('#send-message-form').submit(function(event){
 		event.preventDefault()
 		var data = $(this).serializeFormJSON()
-		data['user_to_id'] = 2
-		console.log(data)
 		$('#send-message-btn').attr('disabled', true)
 		sendMessage(data)
 	})

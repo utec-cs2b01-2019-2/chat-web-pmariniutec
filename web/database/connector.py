@@ -3,6 +3,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import DeclarativeMeta
 import json
+import datetime
 
 
 class Manager:
@@ -26,15 +27,21 @@ class Manager:
 class AlchemyEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj.__class__, DeclarativeMeta):
+            from model.entities import User
             fields = {}
             for field in [x for x in dir(obj)
                           if not x.startswith('_') and x != 'metadata']:
                 data = obj.__getattribute__(field)
-                try:
-                    json.dumps(data)
-                    fields[field] = data
-                except TypeError:
-                    fields[field] = None
+                if isinstance(data, datetime.datetime):
+                    fields[field] = data.strftime("%d/%m/%Y, %H:%M %p")
+                elif isinstance(data, User):
+                    fields[field] = data.email
+                else:
+                    try:
+                        json.dumps(data)
+                        fields[field] = data
+                    except TypeError:
+                        fields[field] = None
 
             return fields
 
